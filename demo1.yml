@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Live project cloud formation
+
+Parameters:
+  DBPassword:
+    Type: String
+    NoEcho: true          # hides the value in console
+    MinLength: 8
+    Description: RDS Master Password
+
+Resources:
+  rdsVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "192.168.0.0/16"
+      EnableDnsHostnames: false
+      EnableDnsSupport: false
+      Tags:
+        - Key: "Name"
+          Value: "rdsVPC"
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "ap-south-1b"
+      CidrBlock: "192.168.1.0/24"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet1"
+      VpcId:
+        Ref: rdsVPC
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: "ap-south-1c"
+      CidrBlock: "192.168.2.0/24"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet2"
+      VpcId:
+        Ref: rdsVPC
+
+  rdsSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "rdsSG"
+      GroupName: "rdsSG"
+      SecurityGroupEgress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "80"
+          IpProtocol: "tcp"
+          ToPort: "80"
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "3306"
+          IpProtocol: "tcp"
+          ToPort: "3306"
+      Tags:
+        - Key: "Name"
+          Value: "rdsSG"
+      VpcId:
+        Ref: rdsVPC
+
+  rdsSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Group of Subnets"
+      DBSubnetGroupName: "rdsSubnetGroup"
+      SubnetIds:
+        - Ref: "PrivateSubnet1"
+        - Ref: "PrivateSubnet2"
+      Tags:
+        - Key: "Name"
+          Value: "rdsSubnetGroup"
+
+  rdsDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: "20"
+      AllowMajorVersionUpgrade: false
+      ApplyImmediately: false
+      BackupRetentionPeriod: "7"
+      DBInstanceClass: "db.t3.micro"
+      DBInstanceIdentifier: "myRDSInstance"
+      DBName: "Ampledb"
+      DBSubnetGroupName:
+        Ref: rdsSubnetGroup
+      Engine: "MySQL"
+      EngineVersion: "8.0.42"
+      MasterUserPassword: !Ref DBPassword   # ← password passed securely at deploy time
+      MasterUsername: "awsuser"
+      Port: "3306"
+      PubliclyAccessible: false
+      Tags:
+        - Key: "Name"
+          Value: "rdsDB"
+      VPCSecurityGroups:
+        - Ref: rdsSG
